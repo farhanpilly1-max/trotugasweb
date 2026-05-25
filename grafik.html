@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TRO — Metode Grafik</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=DM+Sans:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+
+  <!-- TAMBAHAN: Library PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <style>
+    /* ── CONSTRAINT ROWS ── */
+    .con-row {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+      margin-bottom: 10px; padding: 12px 16px;
+      background: var(--panel2); border-radius: 10px;
+      border: 1px solid rgba(201,168,76,0.1);
+      transition: border-color 0.2s;
+    }
+    .con-row:hover { border-color: rgba(201,168,76,0.22); }
+    .con-badge {
+      width: 22px; height: 22px; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 700; color: #080c18;
+      flex-shrink: 0;
+    }
+    .con-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+    .coef-g {
+      width: 66px; background: var(--panel3); border: 1px solid var(--border);
+      border-radius: 7px; padding: 8px 8px; color: var(--text);
+      font-family: 'JetBrains Mono', monospace; font-size: 13px;
+      text-align: center; outline: none; transition: border-color 0.2s;
+      -moz-appearance: textfield;
+    }
+    .coef-g::-webkit-outer-spin-button,
+    .coef-g::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .coef-g:focus { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(201,168,76,0.1); }
+    .rhs-g { color: var(--gold-light); background: rgba(201,168,76,0.07); border-color: rgba(201,168,76,0.28); }
+    .sign-g {
+      background: var(--panel3); border: 1px solid var(--border); border-radius: 7px;
+      padding: 8px 8px; color: var(--gold); font-family: 'DM Sans', sans-serif;
+      font-size: 13px; cursor: pointer; outline: none;
+    }
+
+    /* ── OBJECTIVE ROW ── */
+    .obj-row {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+      padding: 14px 18px; background: rgba(201,168,76,0.05);
+      border: 1px solid rgba(201,168,76,0.2); border-radius: 10px;
+    }
+    .obj-row .var-label { font-size: 15px; font-style: italic; }
+
+    /* ── CANVAS ── */
+    .graph-wrap {
+      background: #080e1a; border-radius: 14px; overflow: hidden;
+      border: 1px solid rgba(201,168,76,0.15);
+    }
+    canvas { display: block; width: 100%; background: #080e1a; }
+
+    /* ── LEGEND ── */
+    .legend-grid {
+      display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px;
+    }
+    .legend-item {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 12px; color: var(--muted);
+      background: var(--panel2); border: 1px solid rgba(201,168,76,0.1);
+      border-radius: 7px; padding: 5px 10px;
+    }
+    .legend-swatch {
+      width: 14px; height: 4px; border-radius: 2px; flex-shrink: 0;
+    }
+    .legend-dot-sm { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ── MATH BOX (grafik variant) ── */
+    .mbox {
+      background: var(--panel2); border-radius: 10px;
+      padding: 16px 20px; margin: 10px 0;
+      border-left: 3px solid rgba(201,168,76,0.35);
+      line-height: 2;
+    }
+    .mrow { font-size: 13px; color: var(--text-dim); }
+    .mrow.goal { font-size: 14px; color: var(--gold-light); font-weight: 600; }
+    .mrow.lbl { font-size: 11px; font-weight: 700; color: var(--gold); letter-spacing: 0.8px; text-transform: uppercase; margin-top: 8px; }
+    .mrow.con { color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+    .mrow.note { color: var(--muted); font-size: 12px; font-style: italic; }
+    .mrow.ind { padding-left: 18px; }
+    .mrow.noneg { color: var(--muted); font-style: italic; font-size: 12px; border-top: 1px dashed rgba(201,168,76,0.15); margin-top: 6px; padding-top: 6px; }
+    .mrow.ok { color: #4ade80; font-weight: 600; }
+    .iq { color: var(--gold); font-weight: 700; }
+    .rv { color: var(--gold-light); font-weight: 600; }
+    .cdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; flex-shrink: 0; }
+
+    /* ── CORNER TABLE ── */
+    .corner-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .corner-table th {
+      background: var(--panel2); padding: 10px 14px; color: var(--gold);
+      border: 1px solid rgba(201,168,76,0.15); font-size: 11px;
+      letter-spacing: 0.4px; white-space: nowrap;
+    }
+    .corner-table td {
+      padding: 9px 14px; border: 1px solid rgba(201,168,76,0.08);
+      color: var(--text-dim); font-family: 'JetBrains Mono', monospace; font-size: 12px;
+      text-align: center;
+    }
+    .corner-table tr.opt-row td { background: rgba(201,168,76,0.12); color: var(--gold-light); font-weight: 600; }
+    .opt-badge { color: var(--gold); font-weight: 700; font-family: 'DM Sans', sans-serif; }
+
+    /* ── HISTORY (grafik page inline) ── */
+    .g-history-wrap {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); overflow: hidden;
+      margin-bottom: 36px; animation: fadeUp 0.5s 0.2s cubic-bezier(.16,1,.3,1) both;
+    }
+    .g-history-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 22px; background: var(--panel2);
+      border-bottom: 1px solid var(--border);
+    }
+    .g-history-title {
+      font-family: 'Playfair Display', serif; font-size: 15px; color: var(--text);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .g-history-list { max-height: 300px; overflow-y: auto; }
+    .g-history-list::-webkit-scrollbar { width: 4px; }
+    .g-history-list::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 4px; }
+    .g-history-empty { padding: 28px; text-align: center; color: var(--muted); font-size: 13px; font-style: italic; }
+
+    .g-hist-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 13px 22px; border-bottom: 1px solid rgba(201,168,76,0.06);
+      cursor: pointer; transition: background 0.18s;
+    }
+    .g-hist-item:hover { background: var(--panel2); }
+    .g-hist-item:last-child { border-bottom: none; }
+    .g-hist-icon {
+      width: 34px; height: 34px; border-radius: 8px;
+      background: var(--gold-dim); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; flex-shrink: 0;
+    }
+    .g-hist-body { flex: 1; min-width: 0; }
+    .g-hist-title { font-size: 13px; color: var(--text); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .g-hist-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .g-hist-z { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--gold); flex-shrink: 0; }
+    .g-hist-del {
+      opacity: 0; transition: opacity 0.18s;
+      width: 26px; height: 26px; border-radius: 6px;
+      border: 1px solid rgba(248,113,113,0.2); background: transparent;
+      color: var(--danger); font-size: 13px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .g-hist-item:hover .g-hist-del { opacity: 1; }
+    .g-hist-del:hover { background: rgba(248,113,113,0.15); }
+
+    /* ── MODAL ── */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 500;
+      background: rgba(8,12,24,0.88); backdrop-filter: blur(10px);
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px; animation: fadeIn 0.2s ease both;
+    }
+    @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+    .modal-box {
+      background: var(--panel); border: 1px solid var(--border-bright);
+      border-radius: 24px; width: 100%; max-width: 960px;
+      max-height: 90vh; display: flex; flex-direction: column;
+      box-shadow: 0 40px 100px rgba(0,0,0,0.7);
+      animation: fadeUp 0.3s cubic-bezier(.16,1,.3,1) both;
+      position: relative; overflow: hidden;
+    }
+    .modal-box::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    }
+    .modal-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 24px; border-bottom: 1px solid var(--border);
+      background: var(--panel2); flex-shrink: 0;
+    }
+    .modal-head-title { font-family: 'Playfair Display', serif; font-size: 17px; color: var(--text); }
+    .modal-head-meta { font-size: 12px; color: var(--muted); margin-top: 3px; }
+    .modal-close {
+      width: 32px; height: 32px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--panel3);
+      color: var(--muted); font-size: 15px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s; flex-shrink: 0;
+    }
+    .modal-close:hover { background: rgba(248,113,113,0.15); border-color: rgba(248,113,113,0.3); color: var(--danger); }
+    .modal-body {
+      overflow-y: auto; padding: 24px; flex: 1;
+      scroll-behavior: smooth;
+    }
+    .modal-body::-webkit-scrollbar { width: 5px; }
+    .modal-body::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 5px; }
+    .modal-foot {
+      padding: 14px 24px; border-top: 1px solid var(--border);
+      display: flex; gap: 10px; justify-content: flex-end;
+      background: var(--panel2); flex-shrink: 0;
+    }
+    .btn-md {
+      padding: 8px 18px; border-radius: 8px; font-size: 13px;
+      cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.2s;
+    }
+    .btn-md-dl { background: var(--gold-dim); border: 1px solid var(--border-bright); color: var(--gold); }
+    .btn-md-dl:hover { background: rgba(201,168,76,0.25); }
+    .btn-md-del { background: transparent; border: 1px solid rgba(248,113,113,0.25); color: var(--danger); }
+    .btn-md-del:hover { background: rgba(248,113,113,0.1); }
+
+    /* TAMBAHAN: Tombol PDF di modal footer */
+    .btn-md-pdf {
+      background: linear-gradient(135deg, #c0392b, #e74c3c);
+      border: none; color: #fff;
+    }
+    .btn-md-pdf:hover { opacity: 0.88; transform: translateY(-1px); }
+    .btn-md-pdf:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* ── TRANSFER PANEL ── */
+    .xfer-panel {
+      background: linear-gradient(135deg, rgba(201,168,76,0.08), rgba(201,168,76,0.03));
+      border: 1px solid rgba(201,168,76,0.22); border-radius: 14px;
+      padding: 18px 22px; margin-top: 24px;
+    }
+    .xfer-title { font-size: 12px; font-weight: 700; color: var(--gold); letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 12px; }
+    .xfer-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn-xfer {
+      padding: 9px 18px; border-radius: 8px;
+      border: 1px solid var(--border-bright);
+      background: var(--gold-dim); color: var(--gold);
+      font-family: 'DM Sans', sans-serif; font-size: 13px;
+      cursor: pointer; transition: all 0.2s;
+      display: flex; align-items: center; gap: 7px; font-weight: 500;
+    }
+    .btn-xfer:hover { background: rgba(201,168,76,0.22); transform: translateY(-1px); }
+
+    /* ── RESULT PAGE STYLES ── */
+    .result-section { animation: fadeUp 0.5s cubic-bezier(.16,1,.3,1) both; }
+    .result-summary {
+      background: linear-gradient(135deg, rgba(201,168,76,0.12), rgba(201,168,76,0.04));
+      border: 1px solid rgba(201,168,76,0.3); border-radius: 20px;
+      padding: 28px 32px; margin-bottom: 28px; position: relative; overflow: hidden;
+    }
+    .result-summary::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(201,168,76,0.6), transparent);
+    }
+    .res-title {
+      font-family: 'Playfair Display', serif; font-size: 18px; color: var(--gold);
+      margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+    }
+    .res-vars { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+    .res-var {
+      display: flex; flex-direction: column; align-items: center;
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 20px; min-width: 76px;
+    }
+    .res-var span { font-size: 11px; color: var(--muted); margin-bottom: 5px; }
+    .res-var strong { font-size: 20px; color: var(--text); font-family: 'JetBrains Mono', monospace; }
+    .res-z { font-size: 15px; color: var(--text-dim); }
+    .res-z strong { color: var(--gold); font-size: 20px; font-family: 'JetBrains Mono', monospace; }
+
+    .steps-title {
+      font-family: 'Playfair Display', serif; font-size: 20px; color: var(--text);
+      margin-bottom: 18px; margin-top: 32px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .steps-title::after { content:''; flex:1; height:1px; background: linear-gradient(90deg, var(--border), transparent); }
+
+    .step-block {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
+      padding: 22px 24px; margin-bottom: 14px;
+      position: relative;
+    }
+    .step-block::before {
+      content: ''; position: absolute; left: 0; top: 14px; bottom: 14px;
+      width: 2px; border-radius: 2px;
+      background: linear-gradient(180deg, var(--gold), transparent); opacity: 0.35;
+    }
+    .step-header {
+      font-weight: 700; font-size: 14px; color: var(--gold);
+      margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border);
+      letter-spacing: 0.2px;
+    }
+    .s-explain { font-size: 13px; color: var(--muted); line-height: 1.75; margin-bottom: 12px; }
+
+    /* TAMBAHAN: PDF bar di bawah hasil */
+    .pdf-bar-grafik {
+      display: none;
+      align-items: center; gap: 14px;
+      margin-top: 20px; margin-bottom: 8px;
+      padding: 14px 20px;
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+    .pdf-bar-grafik span { font-size: 13px; color: var(--muted); flex: 1; }
+    .btn-pdf-grafik {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 22px;
+      background: linear-gradient(135deg, #c0392b, #e74c3c);
+      border: none; border-radius: 9px;
+      color: #fff; font-family: 'DM Sans', sans-serif;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: opacity 0.2s, transform 0.15s; white-space: nowrap;
+    }
+    .btn-pdf-grafik:hover { opacity: 0.88; transform: translateY(-1px); }
+    .btn-pdf-grafik:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    @media (max-width: 600px) {
+      .coef-g { width: 54px; }
+      .modal-box { border-radius: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-brand">
+    <a href="dashboard.html" class="nav-back">← Dashboard</a>
+    <div class="nav-icon">📈</div>
+    <span class="nav-logo">Metode Grafik</span>
+  </div>
+  <div class="nav-right">
+    <div class="user-badge">
+      <div class="user-avatar"><span id="userInitial">U</span></div>
+      <span class="user-name" id="userName">Pengguna</span>
+    </div>
+    <button class="btn-logout" onclick="logout()">Keluar</button>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="page-header">
+    <h1 class="page-title">Metode <span>Grafik</span></h1>
+    <p class="page-desc">Selesaikan program linier dua variabel secara visual — daerah fisibel, titik sudut, dan solusi optimal dengan langkah matematis lengkap.</p>
+  </div>
+
+  <!-- Form -->
+  <div class="form-card">
+    <div class="form-section">
+      <div class="section-label">Tipe Optimasi</div>
+      <div style="display:flex;gap:10px;margin-bottom:4px;">
+        <button class="toggle-btn active" id="btnMax" onclick="setGObj('max')">Maksimasi (Max Z)</button>
+        <button class="toggle-btn" id="btnMin" onclick="setGObj('min')">Minimasi (Min Z)</button>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="section-label">Fungsi Tujuan &nbsp;Z =</div>
+      <div class="obj-row">
+        <input type="number" id="g_c1" value="5" class="coef-g" />
+        <span class="var-label" style="font-size:14px;color:var(--gold-light);">x<sub>1</sub></span>
+        <span style="color:var(--muted);font-size:16px;padding:0 4px;">+</span>
+        <input type="number" id="g_c2" value="4" class="coef-g" />
+        <span class="var-label" style="font-size:14px;color:var(--gold-light);">x<sub>2</sub></span>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="section-label">Fungsi Kendala &nbsp;<span style="font-weight:400;color:var(--muted);font-size:11px;">(maks 20)</span></div>
+      <div id="grafikCons"></div>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:12px;">
+        <span style="font-size:13px;color:var(--muted);">Jumlah Batasan:</span>
+        <button class="ctrl-btn" onclick="removeGCon()">−</button>
+        <span id="grafikConCount" style="color:var(--text);font-size:14px;font-weight:600;min-width:24px;text-align:center;">2</span>
+        <button class="ctrl-btn" onclick="addGCon()">+</button>
+      </div>
+    </div>
+
+    <button class="btn-solve" onclick="solveGrafik()">⚡ Selesaikan &amp; Gambar Grafik</button>
+  </div>
+
+  <!-- History -->
+  <div class="g-history-wrap">
+    <div class="g-history-head">
+      <div class="g-history-title">🕑 Riwayat Perhitungan</div>
+      <div id="gHistActions" style="display:flex;gap:8px;"></div>
+    </div>
+    <div id="grafikHistory">
+      <div class="g-history-empty">Belum ada riwayat. Selesaikan perhitungan pertama.</div>
+    </div>
+  </div>
+
+  <!-- TAMBAHAN: Tombol PDF (muncul otomatis setelah selesaikan) -->
+  <div class="pdf-bar-grafik" id="pdfBarGrafik">
+    <span>📄 Hasil perhitungan siap diunduh sebagai dokumen PDF lengkap</span>
+    <button class="btn-pdf-grafik" id="btnPdfGrafik" onclick="exportGrafikPDFLive()">⬇ Unduh PDF</button>
+  </div>
+
+  <!-- Result -->
+  <div id="grafikResult"></div>
+</main>
+
+<script src="js/auth.js"></script>
+<script src="js/grafik.js"></script>
+<!-- TAMBAHAN: Script PDF -->
+<script src="js/exportpdf.js"></script>
+<script>
+  const s = getSession();
+  if (s) {
+    document.getElementById('userName').textContent = s.name;
+    document.getElementById('userInitial').textContent = s.name.charAt(0).toUpperCase();
+  }
+  initGrafik();
+
+  // TAMBAHAN: patch solveGrafik supaya tombol PDF muncul setelah selesai
+  (function() {
+    var _origSolve = window.solveGrafik;
+    window.solveGrafik = function() {
+      _origSolve();
+      setTimeout(function() {
+        var res = document.getElementById('grafikResult');
+        if (res && res.innerHTML.trim()) {
+          document.getElementById('pdfBarGrafik').style.display = 'flex';
+        }
+      }, 300);
+    };
+  })();
+
+  // TAMBAHAN: patch openGHModal supaya modal punya tombol PDF
+  (function() {
+    var _origOpen = window.openGHModal;
+    window.openGHModal = function(id) {
+      _origOpen(id);
+      setTimeout(function() {
+        var foot = document.querySelector('#ghModal .modal-foot');
+        if (!foot || foot.querySelector('.btn-md-pdf')) return;
+        var btnPdf = document.createElement('button');
+        btnPdf.className = 'btn-md btn-md-pdf';
+        btnPdf.innerHTML = '⬇ Unduh PDF';
+        // Tunggu canvas selesai digambar (openGHModal pakai setTimeout 120ms)
+        btnPdf.onclick = function() {
+          // Beri waktu canvas di modal selesai render sebelum export
+          setTimeout(function() {
+            var entry = (typeof getGH === 'function') ? getGH().find(function(e){ return e.id === id; }) : null;
+            var subtitle = entry ? entry.type : '';
+            exportFromModal('ghModalBody', 'Grafik', subtitle, 'TRO_Grafik', btnPdf);
+          }, 200);
+        };
+        foot.insertBefore(btnPdf, foot.firstChild);
+      }, 300);
+    };
+  })();
+
+  // TAMBAHAN: export PDF dari hasil langsung di halaman
+  function exportGrafikPDFLive() {
+    exportToPDF('grafikResult', 'Grafik',
+      (typeof GS !== 'undefined' && GS.objective === 'min') ? 'Minimasi' : 'Maksimasi',
+      'TRO_Grafik', 'btnPdfGrafik'
+    );
+  }
+
+  // placeholder agar tidak error (tidak dipakai lagi)
+  async function exportGrafikPDFFromModal(id, btn) {
+    var origText = btn.innerHTML;
+    btn.innerHTML = '⏳ Membuat PDF...'; btn.disabled = true;
+
+    try {
+      var { jsPDF } = window.jspdf;
+
+      // Buat clone dengan warna inline
+      var wrapper = document.createElement('div');
+      wrapper.style.cssText = 'position:fixed;left:-9999px;top:0;width:960px;padding:24px;box-sizing:border-box;font-family:DM Sans,sans-serif;background-color:#0a0f1e;color:#e8e6e0;z-index:-9999;';
+      var CSS_VARS_LOCAL = {
+        '--gold':'#c9a84c','--gold-light':'#e8c97a','--deep':'#0a0f1e',
+        '--panel':'#111827','--panel2':'#1a2235','--panel3':'#0f1624',
+        '--text':'#e8e6e0','--muted':'#7a8499','--border':'rgba(201,168,76,0.2)',
+      };
+      Object.entries(CSS_VARS_LOCAL).forEach(function(kv){ wrapper.style.setProperty(kv[0], kv[1]); });
+
+      var clone = body.cloneNode(true);
+      clone.style.cssText = 'background:transparent;color:#e8e6e0;';
+      clone.querySelectorAll('*').forEach(function(el) {
+        Object.entries(CSS_VARS_LOCAL).forEach(function(kv){ el.style.setProperty(kv[0], kv[1]); });
+      });
+      wrapper.appendChild(clone);
+      document.body.appendChild(wrapper);
+
+      await new Promise(function(r){ setTimeout(r, 120); });
+
+      var canvas = await html2canvas(wrapper, {
+        scale: 2, useCORS: true, allowTaint: true,
+        backgroundColor: '#0a0f1e', logging: false, width: 960, windowWidth: 960,
+      });
+      document.body.removeChild(wrapper);
+
+      var imgW = canvas.width, imgH = canvas.height;
+      var pdfW = 210, pdfH = 297, margin = 12, headerH = 26;
+      var contentW = pdfW - margin*2, contentH = pdfH - headerH - margin*2;
+      var scaledH = (imgH/imgW)*contentW;
+      var totalPages = Math.max(1, Math.ceil(scaledH/contentH));
+      var pdf = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+
+      for (var page = 0; page < totalPages; page++) {
+        if (page > 0) pdf.addPage();
+        // Header
+        pdf.setFillColor(10,15,30); pdf.rect(0,0,pdfW,headerH,'F');
+        pdf.setDrawColor(201,168,76); pdf.setLineWidth(0.4); pdf.line(0,headerH,pdfW,headerH);
+        pdf.setFont('helvetica','bold'); pdf.setFontSize(12); pdf.setTextColor(201,168,76);
+        pdf.text('TRO', margin, 9);
+        pdf.setFont('helvetica','normal'); pdf.setFontSize(9); pdf.setTextColor(200,196,188);
+        pdf.text('Metode Grafik — ' + (entry.type||''), margin+13, 9);
+        pdf.setFontSize(7.5); pdf.setTextColor(100,110,130);
+        pdf.text(new Date(entry.timestamp).toLocaleString('id-ID'), pdfW-margin, 9, {align:'right'});
+        pdf.text('Halaman '+(page+1)+' / '+totalPages, pdfW-margin, 17, {align:'right'});
+        pdf.text('Teknik Riset Operasi — Platform Komputasi', margin, 21);
+        // Konten
+        var pxPerMm = imgW/contentW;
+        var srcY = Math.floor(page*contentH*pxPerMm);
+        var srcH = Math.min(Math.ceil(contentH*pxPerMm), imgH-srcY);
+        if (srcH <= 0) continue;
+        var pc = document.createElement('canvas');
+        pc.width = imgW; pc.height = srcH;
+        var pCtx = pc.getContext('2d');
+        pCtx.fillStyle='#0a0f1e'; pCtx.fillRect(0,0,imgW,srcH);
+        pCtx.drawImage(canvas,0,srcY,imgW,srcH,0,0,imgW,srcH);
+        pdf.addImage(pc.toDataURL('image/png'),'PNG',margin,headerH+margin,contentW,Math.min((srcH/pxPerMm),contentH));
+        // Footer
+        pdf.setDrawColor(201,168,76); pdf.setLineWidth(0.25); pdf.line(margin,pdfH-9,pdfW-margin,pdfH-9);
+        pdf.setFont('helvetica','normal'); pdf.setFontSize(7); pdf.setTextColor(100,110,130);
+        pdf.text('Platform TRO', margin, pdfH-5);
+        pdf.text('Halaman '+(page+1)+' dari '+totalPages, pdfW-margin, pdfH-5, {align:'right'});
+      }
+
+      var d = new Date();
+      var tag = d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
+      pdf.save('TRO_Grafik_'+tag+'.pdf');
+
+    } catch(err) {
+      console.error(err);
+      alert('Gagal membuat PDF.\n'+err.message);
+    } finally {
+      btn.innerHTML = origText; btn.disabled = false;
+    }
+  }
+</script>
+</body>
+</html>

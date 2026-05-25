@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TRO — Metode Simplex</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .obj-toggle { display:flex; gap:10px; margin-bottom:24px; }
+    .toggle-btn {
+      padding:9px 28px; border-radius:8px; border:1px solid var(--border);
+      background:var(--panel2); color:var(--muted);
+      font-family:'DM Sans',sans-serif; font-size:14px; cursor:pointer; transition:all .2s;
+    }
+    .toggle-btn.active {
+      background:linear-gradient(135deg,var(--gold),var(--gold-light));
+      color:#0a0f1e; border-color:transparent; font-weight:600;
+    }
+    .var-controls { display:flex; align-items:center; gap:12px; margin-bottom:20px; }
+    .var-label-text { font-size:13px; color:var(--muted); }
+    .ctrl-btn {
+      width:30px; height:30px; border-radius:6px; border:1px solid var(--border);
+      background:var(--panel2); color:var(--gold); font-size:18px; cursor:pointer;
+      display:flex; align-items:center; justify-content:center; transition:background .2s;
+    }
+    .ctrl-btn:hover { background:rgba(201,168,76,.15); }
+    .eq-row { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:4px; }
+    .eq-term { display:flex; align-items:center; gap:6px; }
+    .coef-input {
+      width:68px; background:var(--panel2); border:1px solid var(--border);
+      border-radius:8px; padding:9px 8px; color:var(--text);
+      font-family:'DM Sans',sans-serif; font-size:14px; text-align:center; outline:none; transition:border-color .2s;
+    }
+    .coef-input:focus { border-color:var(--gold); }
+    .rhs-input { width:80px; }
+    .var-label { font-size:14px; color:var(--gold-light); }
+    .op { font-size:16px; color:var(--muted); padding:0 4px; }
+    .sign-sel {
+      background:var(--panel2); border:1px solid var(--border); border-radius:8px;
+      padding:9px 10px; color:var(--gold); font-family:'DM Sans',sans-serif; font-size:14px; cursor:pointer; outline:none;
+    }
+    .constraint-row {
+      display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:12px;
+      padding:14px 16px; background:var(--panel2); border-radius:10px; border:1px solid rgba(201,168,76,.1);
+    }
+    .result-section { animation:fadeUp .5s cubic-bezier(.16,1,.3,1) both; }
+    .result-summary {
+      background:linear-gradient(135deg,rgba(201,168,76,.14),rgba(201,168,76,.04));
+      border:1px solid rgba(201,168,76,.35); border-radius:16px; padding:32px 36px; margin-bottom:32px;
+    }
+    .res-title { font-family:'Playfair Display',serif; font-size:20px; color:var(--gold); margin-bottom:18px; }
+    .res-vars { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:16px; }
+    .res-var {
+      display:flex; flex-direction:column; align-items:center;
+      background:var(--panel); border:1px solid var(--border);
+      border-radius:10px; padding:12px 16px; min-width:68px;
+    }
+    .res-var span { font-size:12px; color:var(--muted); margin-bottom:4px; }
+    .res-var strong { font-size:18px; color:var(--text); }
+    .res-z { font-size:16px; color:var(--text); font-weight:500; }
+    .res-z strong { color:var(--gold); font-size:22px; }
+    .step-block {
+      background:var(--panel); border:1px solid var(--border); border-radius:16px;
+      padding:28px 30px; margin-bottom:22px;
+    }
+    .step-header {
+      font-weight:700; font-size:16px; color:var(--gold);
+      margin-bottom:18px; padding-bottom:12px; border-bottom:1px solid var(--border);
+    }
+    .s-explain { font-size:13px; color:var(--muted); line-height:1.75; margin-bottom:16px; }
+    .sub-block {
+      background:var(--panel2); border:1px solid rgba(201,168,76,.12);
+      border-radius:12px; padding:20px 22px; margin-bottom:18px;
+    }
+    .sub-header {
+      display:flex; align-items:center; gap:10px;
+      font-size:14px; font-weight:600; color:var(--text);
+      margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid rgba(201,168,76,.1);
+    }
+    .sub-badge {
+      width:26px; height:26px; border-radius:6px;
+      background:linear-gradient(135deg,var(--gold),var(--gold-light));
+      color:#0a0f1e; font-size:13px; font-weight:700;
+      display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    }
+    .math-box {
+      background:rgba(0,0,0,.25); border:1px solid rgba(201,168,76,.1);
+      border-radius:10px; padding:18px 22px; font-size:14px; line-height:1.9;
+    }
+    .math-box.mt16 { margin-top:16px; }
+    .mb-row { color:var(--text); margin-bottom:3px; }
+    .mb-row.mb-goal { color:var(--gold-light); font-weight:600; font-size:15px; }
+    .mb-row.mb-label { color:var(--gold); font-weight:600; margin-top:4px; }
+    .mb-row.mb-con { color:var(--text); }
+    .mb-row.mb-note { color:var(--muted); font-size:13px; }
+    .mb-row.mb-indent,.mb-indent { padding-left:24px; }
+    .mb-row.mb-noneg { color:var(--muted); font-style:italic; }
+    .mb-row.mt8 { margin-top:10px; }
+    .mb-row.mt12 { margin-top:14px; }
+    .mb-row.result-row { color:var(--gold-light); font-weight:600; margin-top:6px; }
+    .verify-ok { color:#4ade80; font-weight:600; }
+    .con-num { color:var(--gold); font-weight:600; margin-right:6px; }
+    .ineq { color:var(--gold-light); font-weight:600; margin:0 2px; }
+    .rhs { color:var(--text); font-weight:600; }
+    .con-note { color:var(--muted); font-size:12px; }
+    .slk-add { color:#4ade80; font-weight:600; }
+    .slk-sub { color:#fb923c; font-weight:600; }
+    .hvar { background:rgba(201,168,76,.2); padding:1px 6px; border-radius:4px; color:var(--gold); font-weight:600; }
+    .zrow-cells { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
+    .zcell {
+      background:var(--panel2); border:1px solid rgba(201,168,76,.15);
+      border-radius:8px; padding:8px 12px; text-align:center; min-width:56px;
+    }
+    .zcell-pivot { background:rgba(201,168,76,.25); border-color:var(--gold); }
+    .zcell-var { font-size:11px; color:var(--muted); margin-bottom:2px; }
+    .zcell-val { font-size:14px; font-weight:600; color:var(--text); }
+    .zcell-pivot .zcell-val { color:var(--gold); }
+    .calc-table { border-collapse:collapse; width:100%; font-size:13px; overflow-x:auto; margin-top:10px; }
+    .calc-table th { background:var(--panel); padding:9px 14px; color:var(--gold); border:1px solid rgba(201,168,76,.18); text-align:center; }
+    .calc-table td { padding:8px 14px; border:1px solid rgba(201,168,76,.1); color:var(--muted); text-align:center; }
+    .calc-table tr.tr-win td { background:rgba(201,168,76,.12); color:var(--text); }
+    .min-tag { color:var(--gold); font-weight:700; }
+    .op-section { margin-bottom:22px; padding-bottom:22px; border-bottom:1px dashed rgba(201,168,76,.12); }
+    .op-section:last-child { border-bottom:none; margin-bottom:0; padding-bottom:0; }
+    .op-section-title { font-size:14px; font-weight:600; color:var(--gold-light); margin-bottom:10px; }
+    .rowop-table { border-collapse:collapse; width:100%; font-size:12px; overflow-x:auto; display:block; }
+    .rowop-table th { background:rgba(201,168,76,.12); padding:7px 12px; color:var(--gold); border:1px solid rgba(201,168,76,.18); text-align:center; white-space:nowrap; }
+    .rowop-table td { padding:7px 12px; border:1px solid rgba(201,168,76,.1); text-align:center; white-space:nowrap; }
+    .tr-before td { color:var(--muted); background:rgba(0,0,0,.15); }
+    .tr-op td { color:#fb923c; font-size:11px; background:rgba(251,146,60,.06); }
+    .tr-op td.op-td { font-family:'Courier New',monospace; }
+    .tr-after td { color:#4ade80; font-weight:600; background:rgba(74,222,128,.06); }
+    .tr-factor td { color:#60a5fa; font-size:11px; background:rgba(96,165,250,.05); }
+    .tr-factor td.factor-val { font-family:'Courier New',monospace; }
+    .table-wrap { overflow-x:auto; }
+    .simplex-table { border-collapse:collapse; font-size:13px; min-width:360px; width:100%; }
+    .simplex-table th { background:var(--panel2); padding:9px 12px; color:var(--gold); font-weight:500; text-align:center; border:1px solid rgba(201,168,76,.15); white-space:nowrap; }
+    .simplex-table td { padding:8px 12px; text-align:center; border:1px solid rgba(201,168,76,.1); color:var(--text); }
+    .basis-cell { color:var(--gold-light)!important; font-weight:500; background:rgba(201,168,76,.06); }
+    .obj-row td { background:rgba(201,168,76,.06); color:var(--gold-light)!important; }
+    .pivot-cell { background:rgba(201,168,76,.4)!important; color:#0a0f1e!important; font-weight:700; }
+    .piv-col { background:rgba(201,168,76,.08); }
+    .piv-row { background:rgba(201,168,76,.05); }
+    .tableau-note { margin-top:12px; font-size:12px; color:var(--muted); line-height:1.7; }
+    .optimal-note { margin-top:14px; padding:12px 16px; font-size:13px; color:#4ade80; background:rgba(74,222,128,.08); border:1px solid rgba(74,222,128,.2); border-radius:8px; }
+    .not-optimal-note { margin-top:14px; padding:12px 16px; font-size:13px; color:#fb923c; background:rgba(251,146,60,.08); border:1px solid rgba(251,146,60,.2); border-radius:8px; }
+    .no-sol { color:#f87171; font-size:14px; padding:16px; background:rgba(220,53,69,.1); border-radius:10px; border:1px solid rgba(220,53,69,.2); }
+    .history-section { margin-top:52px; }
+    .history-section-title { font-family:'Playfair Display',serif; font-size:22px; color:var(--text); margin-bottom:20px; padding-bottom:12px; border-bottom:1px solid var(--border); }
+    .history-empty { color:var(--muted); font-size:14px; padding:24px 0; text-align:center; }
+    .history-actions-bar { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:10px; }
+    .history-count { font-size:13px; color:var(--muted); }
+    .btn-hist-action { padding:8px 16px; border-radius:8px; font-family:'DM Sans',sans-serif; font-size:13px; cursor:pointer; border:1px solid; transition:background .2s; }
+    .btn-dl { background:transparent; border-color:rgba(201,168,76,.35); color:var(--gold); }
+    .btn-dl:hover { background:rgba(201,168,76,.1); }
+    .btn-clr { background:transparent; border-color:rgba(220,53,69,.3); color:#f87171; }
+    .btn-clr:hover { background:rgba(220,53,69,.08); }
+    .history-list { display:flex; flex-direction:column; gap:10px; }
+    .history-item { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; transition:border-color .2s; }
+    .history-item:hover { border-color:rgba(201,168,76,.35); }
+    .history-item-left { display:flex; align-items:center; gap:14px; }
+    .history-item-icon { font-size:22px; }
+    .history-item-title { font-size:14px; color:var(--text); font-weight:500; margin-bottom:3px; }
+    .history-item-meta { font-size:12px; color:var(--muted); }
+    .history-item-z { font-size:14px; color:var(--gold); font-weight:600; white-space:nowrap; }
+    .history-del-btn { background:transparent; border:1px solid rgba(220,53,69,.3); border-radius:6px; color:#f87171; width:28px; height:28px; cursor:pointer; font-size:12px; display:flex; align-items:center; justify-content:center; transition:background .2s; }
+    .history-del-btn:hover { background:rgba(220,53,69,.1); }
+    @media(max-width:640px) {
+      .coef-input { width:56px; }
+      .res-var { min-width:58px; }
+      .step-block { padding:20px 16px; }
+      .sub-block { padding:16px 14px; }
+    }
+    .pdf-bar { display:none; align-items:center; gap:14px; margin-bottom:20px; padding:13px 18px; background:var(--panel); border:1px solid var(--border); border-radius:11px; }
+    .pdf-bar span { font-size:13px; color:var(--muted); flex:1; }
+    .btn-pdf { padding:9px 20px; background:linear-gradient(135deg,#c0392b,#e74c3c); border:none; border-radius:8px; color:#fff; font-family:"DM Sans",sans-serif; font-size:13px; font-weight:600; cursor:pointer; transition:opacity .2s,transform .15s; white-space:nowrap; }
+    .btn-pdf:hover { opacity:.88; transform:translateY(-1px); }
+    .btn-pdf:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-brand">
+    <a href="dashboard.html" class="nav-back">← Dashboard</a>
+    <div class="nav-icon">∑</div>
+    <span class="nav-logo">Metode Simplex</span>
+  </div>
+  <div class="nav-right">
+    <div class="user-badge">
+      <div class="user-avatar"><span id="userInitial">U</span></div>
+      <span class="user-name" id="userName">Pengguna</span>
+    </div>
+    <button class="btn-logout" onclick="logout()">Keluar</button>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="page-header">
+    <h1 class="page-title">Metode <span>Simplex</span></h1>
+    <p class="page-desc">Optimasi program linier dengan langkah matematis lengkap — setiap iterasi ditampilkan mulai dari pemilihan pivot, uji rasio, hingga operasi baris numerik penuh.</p>
+  </div>
+
+  <div class="form-card">
+    <div class="form-section">
+      <div class="section-label">Tipe Optimasi</div>
+      <div class="obj-toggle">
+        <button class="toggle-btn active" id="btnMax" onclick="setObjective('max')">Maksimasi (Max Z)</button>
+        <button class="toggle-btn" id="btnMin" onclick="setObjective('min')">Minimasi (Min Z)</button>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="section-label">Fungsi Tujuan: Z =</div>
+      <div id="objInputs"></div>
+      <div class="var-controls">
+        <span class="var-label-text">Jumlah Variabel (maks 10):</span>
+        <button class="ctrl-btn" onclick="removeVariable()">−</button>
+        <span id="varCount" style="color:var(--text);font-size:14px;min-width:24px;text-align:center;">2</span>
+        <button class="ctrl-btn" onclick="addVariable()">+</button>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="section-label">Fungsi Kendala (maks 20)</div>
+      <div id="consInputs"></div>
+      <div class="var-controls">
+        <span class="var-label-text">Jumlah Batasan:</span>
+        <button class="ctrl-btn" onclick="removeConstraint()">−</button>
+        <span id="conCount" style="color:var(--text);font-size:14px;min-width:24px;text-align:center;">2</span>
+        <button class="ctrl-btn" onclick="addConstraint()">+</button>
+      </div>
+    </div>
+
+    <button class="btn-solve" onclick="solveSimplex()">⚡ Selesaikan — Tampilkan Langkah Lengkap</button>
+  </div>
+
+  <div class="pdf-bar" id="pdfBar">
+    <span>📄 Hasil siap diunduh sebagai PDF</span>
+    <button class="btn-pdf" id="btnPdfSimplex" onclick="exportSimplexPDF()">⬇ Unduh PDF</button>
+  </div>
+
+  <div id="simplexResult"></div>
+
+  <div class="history-section">
+    <div class="history-section-title">🕑 Riwayat Perhitungan</div>
+    <div id="simplexHistory">
+      <div class="history-empty">Belum ada riwayat. Selesaikan perhitungan pertama.</div>
+    </div>
+  </div>
+</main>
+
+<!-- ✅ KUNCI PERBAIKAN: Simplex.js dan exportpdf.js HARUS sebelum auth.js -->
+<!-- auth.js mengandung IIFE checkSession() yang bisa redirect sebelum fungsi lain siap -->
+<script src="js/Simplex.js"></script>
+<script src="js/exportpdf.js"></script>
+<script src="js/auth.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var s = getSession();
+    if (s) {
+      var nameEl = document.getElementById('userName');
+      var initEl = document.getElementById('userInitial');
+      if (nameEl) nameEl.textContent = s.name;
+      if (initEl) initEl.textContent = s.name.charAt(0).toUpperCase();
+    }
+    initSimplex();
+    renderHistoryPanel();
+    var _orig = window.renderAllSteps;
+    window.renderAllSteps = function (steps) {
+      _orig(steps);
+      var bar = document.getElementById('pdfBar');
+      if (bar) bar.style.display = 'flex';
+    };
+  });
+</script>
+
+</body>
+</html>
